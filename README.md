@@ -1,5 +1,7 @@
 # A richer `Result` type for Rust
 
+(on [crates.io](https://crates.io/crates/rich-result))
+
 Defined as
 ```rs
 pub enum Result<T, RE, FE> {
