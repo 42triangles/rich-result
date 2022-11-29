@@ -1,7 +1,9 @@
 #![feature(try_trait_v2)]
-use std::{convert::Infallible, fmt, iter, ops};
+#![cfg_attr(not(any(test, feature = "std")), no_std)]
 
-pub use std::result::Result::{self as StdResult, Err as StdErr, Ok as StdOk};
+use core::{convert::Infallible, fmt, iter, ops};
+
+pub use core::result::Result::{self as StdResult, Err as StdErr, Ok as StdOk};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CollectedErrs<C>(pub C);
@@ -259,11 +261,11 @@ impl<T, RE, FE> Result<T, RE, FE> {
         self.as_mut().map_deref_mut()
     }
 
-    pub fn iter(&self) -> std::option::IntoIter<&T> {
+    pub fn iter(&self) -> core::option::IntoIter<&T> {
         self.as_ref().ok().into_iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::option::IntoIter<&mut T> {
+    pub fn iter_mut(&mut self) -> core::option::IntoIter<&mut T> {
         self.as_mut().ok().into_iter()
     }
 
@@ -459,7 +461,7 @@ impl<T, RE, FE> From<StdResult<StdResult<T, RE>, FE>> for Result<T, RE, FE> {
 
 impl<T, RE, FE> IntoIterator for Result<T, RE, FE> {
     type Item = T;
-    type IntoIter = std::option::IntoIter<T>;
+    type IntoIter = core::option::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.ok().into_iter()
@@ -468,7 +470,7 @@ impl<T, RE, FE> IntoIterator for Result<T, RE, FE> {
 
 impl<'a, T, RE, FE> IntoIterator for &'a Result<T, RE, FE> {
     type Item = &'a T;
-    type IntoIter = std::option::IntoIter<&'a T>;
+    type IntoIter = core::option::IntoIter<&'a T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
@@ -477,7 +479,7 @@ impl<'a, T, RE, FE> IntoIterator for &'a Result<T, RE, FE> {
 
 impl<'a, T, RE, FE> IntoIterator for &'a mut Result<T, RE, FE> {
     type Item = &'a mut T;
-    type IntoIter = std::option::IntoIter<&'a mut T>;
+    type IntoIter = core::option::IntoIter<&'a mut T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
@@ -531,6 +533,7 @@ where
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: std::process::Termination, RE: fmt::Debug, FE: fmt::Debug> std::process::Termination
     for Result<T, RE, FE>
 {
