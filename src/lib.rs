@@ -696,38 +696,6 @@ impl<T, RE> ops::Try for LocalResult<T, RE> {
     }
 }
 
-#[must_use]
-pub struct BubbleResult<T, RE, FE>(pub Result<T, RE, FE>);
-
-impl<T, RE, FE, REO: From<RE>, FEO: From<FE>> ops::FromResidual<BubbleResult<Infallible, RE, FE>>
-    for BubbleResult<T, REO, FEO>
-{
-    fn from_residual(residual: BubbleResult<Infallible, RE, FE>) -> Self {
-        match residual.0 {
-            Ok(infallible) => match infallible {},
-            Recoverable(err) => BubbleResult(Recoverable(err.into())),
-            Fatal(err) => BubbleResult(Fatal(err.into())),
-        }
-    }
-}
-
-impl<T, RE, FE> ops::Try for BubbleResult<T, RE, FE> {
-    type Output = T;
-    type Residual = BubbleResult<Infallible, RE, FE>;
-
-    fn from_output(output: Self::Output) -> Self {
-        BubbleResult(Ok(output))
-    }
-
-    fn branch(self) -> ops::ControlFlow<Self::Residual, Self::Output> {
-        match self.0 {
-            Ok(ok) => ops::ControlFlow::Continue(ok),
-            Recoverable(err) => ops::ControlFlow::Break(BubbleResult(Recoverable(err))),
-            Fatal(err) => ops::ControlFlow::Break(BubbleResult(Fatal(err))),
-        }
-    }
-}
-
 // cross compatibility: -> StdResult<_, _>
 impl<T, FE, FEO: From<FE>> ops::FromResidual<Result<Infallible, Infallible, FE>>
     for StdResult<T, FEO>
@@ -747,18 +715,6 @@ impl<T, RE, REO: From<RE>, FEO> ops::FromResidual<LocalResult<Infallible, RE>>
         match residual {
             NoErr(infallible) => match infallible {},
             Handle(err) => StdResult::Ok(StdResult::Err(err.into())),
-        }
-    }
-}
-
-impl<T, RE, FE, REO: From<RE>, FEO: From<FE>> ops::FromResidual<BubbleResult<Infallible, RE, FE>>
-    for StdResult<StdResult<T, REO>, FEO>
-{
-    fn from_residual(residual: BubbleResult<Infallible, RE, FE>) -> Self {
-        match residual.0 {
-            Ok(infallible) => match infallible {},
-            Recoverable(err) => StdResult::Ok(StdResult::Err(err.into())),
-            Fatal(err) => StdResult::Err(err.into()),
         }
     }
 }
@@ -783,43 +739,6 @@ impl<T, RE, FE, REO: From<RE>> ops::FromResidual<LocalResult<Infallible, RE>>
             NoErr(infallible) => match infallible {},
             Handle(err) => Recoverable(err.into()),
         }
-    }
-}
-
-impl<T, RE, FE, REO: From<RE>, FEO: From<FE>> ops::FromResidual<BubbleResult<Infallible, RE, FE>>
-    for Result<T, REO, FEO>
-{
-    fn from_residual(residual: BubbleResult<Infallible, RE, FE>) -> Self {
-        match residual.0 {
-            Ok(infallible) => match infallible {},
-            Recoverable(err) => Recoverable(err.into()),
-            Fatal(err) => Fatal(err.into()),
-        }
-    }
-}
-
-// cross compatibility: -> BubbleResult<_, _, _>
-impl<T, RE, FE, FEO: From<FE>> ops::FromResidual<StdResult<Infallible, FE>>
-    for BubbleResult<T, RE, FEO>
-{
-    fn from_residual(residual: StdResult<Infallible, FE>) -> Self {
-        BubbleResult(Result::from_residual(residual))
-    }
-}
-
-impl<T, RE, FE, FEO: From<FE>> ops::FromResidual<Result<Infallible, Infallible, FE>>
-    for BubbleResult<T, RE, FEO>
-{
-    fn from_residual(residual: Result<Infallible, Infallible, FE>) -> Self {
-        BubbleResult(Result::from_residual(residual))
-    }
-}
-
-impl<T, RE, FE, REO: From<RE>> ops::FromResidual<LocalResult<Infallible, RE>>
-    for BubbleResult<T, REO, FE>
-{
-    fn from_residual(residual: LocalResult<Infallible, RE>) -> Self {
-        BubbleResult(Result::from_residual(residual))
     }
 }
 
@@ -1053,15 +972,11 @@ mod tests {
         type NormalResultTy = StdResult<OkTy, FatalTy>;
         type StackedResultTy = StdResult<StdResult<OkTy, RecoverableTy>, FatalTy>;
         type ResultTy = Result<OkTy, RecoverableTy, FatalTy>;
-        type BubbleTy = BubbleResult<OkTy, RecoverableTy, FatalTy>;
 
         fn std_result() -> NormalResultTy {
             unimplemented!()
         }
         fn result() -> ResultTy {
-            unimplemented!()
-        }
-        fn bubble() -> BubbleTy {
             unimplemented!()
         }
 
@@ -1075,7 +990,6 @@ mod tests {
                     NoErr(_) | Handle(_) => (),
                 }
                 result()??;
-                bubble()?;
 
                 StdOk(StdOk(OkTy))
             }
@@ -1086,20 +1000,8 @@ mod tests {
                     NoErr(_) | Handle(_) => (),
                 }
                 result()??;
-                bubble()?;
 
                 Ok(OkTy)
-            }
-
-            fn returns_bubble() -> BubbleTy {
-                std_result()?;
-                match result()? {
-                    NoErr(_) | Handle(_) => (),
-                }
-                result()??;
-                bubble()?;
-
-                BubbleResult(Ok(OkTy))
             }
 
             /// This should warn because `result()?` still has an unhandled error
