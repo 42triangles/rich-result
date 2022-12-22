@@ -5,6 +5,51 @@ use core::{convert::Infallible, fmt, iter, ops};
 
 pub use core::result::Result::{self as StdResult, Err as StdErr, Ok as StdOk};
 
+mod sealed {
+    use super::StdResult;
+
+    pub trait StdResultExt {
+        type Ok;
+        type Err;
+    }
+
+    impl<O, E> StdResultExt for StdResult<O, E> {
+        type Ok = O;
+        type Err = E;
+    }
+}
+
+pub trait StdResultExt: Into<StdResult<Self::Ok, Self::Err>> + sealed::StdResultExt {
+    fn rich(
+        self,
+    ) -> Result<
+        <Self::Ok as sealed::StdResultExt>::Ok,
+        <Self::Ok as sealed::StdResultExt>::Err,
+        Self::Err,
+    >
+    where
+        Self::Ok: StdResultExt,
+    {
+        Result::from_std(self.into().map(Into::into))
+    }
+
+    fn ok_or_recoverable<FE>(self) -> Result<Self::Ok, Self::Err, FE> {
+        Result::ok_or_recoverable(self.into())
+    }
+
+    fn ok_or_fatal<RE>(self) -> Result<Self::Ok, RE, Self::Err> {
+        Result::ok_or_fatal(self.into())
+    }
+
+    fn recoverable_or_fatal<T>(self) -> Result<T, Self::Ok, Self::Err> {
+        Result::from_err(self.into())
+    }
+
+    fn local(self) -> LocalResult<Self::Ok, Self::Err> {
+        LocalResult::from_std(self.into())
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CollectedErrs<C>(pub C);
 
