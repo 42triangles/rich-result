@@ -50,6 +50,8 @@ pub trait StdResultExt: Into<StdResult<Self::Ok, Self::Err>> + sealed::StdResult
     }
 }
 
+impl<O, E> StdResultExt for StdResult<O, E> { }
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct CollectedErrs<C>(pub C);
 
